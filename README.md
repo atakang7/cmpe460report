@@ -1,20 +1,21 @@
 # KAN vs. MLP: Computer Vision Benchmark under Strict Parameter Constraints
 
-A rigorous empirical benchmark comparing **Kolmogorov-Arnold Networks (KAN)** and **FastKAN** against standard **Multi-Layer Perceptrons (MLP)** on basic computer vision tasks.
+## Overview
+This repository contains a rigorous empirical benchmark comparing **Kolmogorov-Arnold Networks (KAN)** and their variant **FastKAN** against standard **Multi-Layer Perceptrons (MLP)** on basic computer vision tasks.
 
-Unlike theoretical studies that often use large models, this project enforces a strict **~100k parameter budget** across all architectures to simulate real-world resource-constrained environments (e.g., edge devices).
+Unlike many theoretical studies that utilize large models, this project enforces a strict **~100k parameter budget** across all architectures. This constraint simulates real-world resource-limited environments, such as edge devices, providing a pragmatic assessment of architectural efficiency.
 
-See Report: [Report](./plots/cmpe460.pdf)
+**Full Report:** [View PDF Report](./plots/cmpe460.pdf)
 
-## Findings
+## Key Findings
+Based on 10-epoch training runs on an NVIDIA RTX 3060, the following conclusions were drawn:
 
-Based on 10-epoch training runs on an NVIDIA RTX 3060:
+1.  **MLP Superiority at Low Parameter Counts:** The standard MLP architecture outperformed both KAN and FastKAN in accuracy, training speed, and convergence rate on both MNIST and Fashion-MNIST datasets.
+2.  **Inefficiency of Complex KAN Grids:** Reducing the KAN spline grid size from $G=5$ to $G=3$ resulted in improved accuracy (+0.33% on Fashion-MNIST). This indicates that standard KAN configurations may over-allocate limited parameters to complex edge functions rather than necessary network width.
+3.  **Computational Overhead of Splines:** Despite using optimized vectorized implementations (`EfficientKAN`), KAN models were approximately **15% slower** per training epoch than standard MLPs due to the mathematical complexity of spline evaluation.
 
-1.  **MLP is Strictly Superior at this Scale:** The standard MLP outperformed both KAN and FastKAN in every metric (accuracy, speed, convergence rate) on both MNIST and Fashion-MNIST.
-2.  **KAN Wastes Parameters on Simple Tasks:** Reducing KAN's spline grid from $G=5$ to $G=3$ *improved* Fashion-MNIST accuracy (+0.33%), proving that standard KANs over-allocate limited parameters to complex edge functions rather than useful network width.
-3.  **Vectorization Doesn't Fix the Speed Gap:** Even highly optimized `EfficientKAN` implementations were **~15% slower** per epoch than standard MLPs due to the mathematical complexity of spline evaluation.
-
-| Model | Fashion-MNIST Acc | Parameters | Training Time (RTX 3060) |
+### Performance Summary (Fashion-MNIST)
+| Model | Accuracy | Parameters | Training Time (RTX 3060) |
 | :--- | :--- | :--- | :--- |
 | **MLP (Baseline)** | **88.11%** | **109,386** | **18.19s / epoch** |
 | KAN (Efficient) | 86.90% | 107,190 | 20.29s / epoch |
@@ -22,21 +23,21 @@ Based on 10-epoch training runs on an NVIDIA RTX 3060:
 
 ## Visualizations
 
-### 1. Training Dynamics (MLP vs. KANs)
-MLP (blue) demonstrates significantly faster initial convergence and maintains a higher accuracy plateau throughout training.
+### Training Dynamics
+The MLP (blue curve) demonstrates significantly faster initial convergence and maintains a higher accuracy plateau throughout the training process compared to KAN variants.
 ![Training Curves](./plots/training_curves.png)
 
-### 2. Aggregate Performance Comparison
-The performance gap widens slightly on the more complex Fashion-MNIST dataset (bottom row), highlighting KAN's struggle with richer visual features under tight budgets.
+### Aggregate Performance Comparison
+The performance gap between architectures widens on the more complex Fashion-MNIST dataset (bottom row), highlighting the struggle of KANs to extract rich visual features under tight parameter constraints.
 ![Dataset Comparison](./plots/dataset_comparison.png)
 
-### 3. Ablation Studies (Fashion-MNIST)
-Testing grid sensitivity (left dashed lines) and structural depth (right bars) confirms MLP superiority is robust and architectural, not just a hyperparameter fluke.
+### Ablation Studies (Fashion-MNIST)
+Ablation tests confirm the robustness of these findings. Reducing grid sensitivity (left dashed lines) improved KAN performance, while increasing MLP depth (right bars) did not alter its superiority.
 ![Ablation Analysis](./plots/ablation_analysis.png)
 
-## 🛠️ Reproduction
+## Reproduction
 
-This project uses **Poetry** for exact dependency management and **Jupyter** for experiments.
+This project utilizes **Poetry** for strict dependency management and **Jupyter** notebooks for experimental execution.
 
 ### Installation
 ```bash
@@ -45,38 +46,28 @@ cd cmpe460report
 poetry install
 ```
 
-### Running Experiments
-Activate the environment and open the notebooks:
+### Execution
+Activate the virtual environment:
 ```bash
 poetry shell
 ```
-
-* **`main.ipynb`**: Runs the core 6 benchmarks (3 models x 2 datasets), generates standard training curves, and saves checkpoints.
+Launch Jupyter Lab or Notebook to run the experiments:
+* **`main.ipynb`**: Executes the core 6 benchmarks (3 models x 2 datasets), generates standard training curves, and saves model checkpoints.
 * **`ablation.ipynb`**: Executes the mandatory ablation studies (Grid Sensitivity Analysis and Structural Depth Tests) on Fashion-MNIST.
 
-## 📂 Repository Structure
+## Repository Structure
+* `main.ipynb`: Primary benchmark runner.
+* `ablation.ipynb`: Supplementary ablation studies.
+* `experiment_results.txt`: Raw execution logs for verification of reported metrics.
+* `data/`: Directory for cached datasets (MNIST/Fashion-MNIST).
+* `saved_models/`: PyTorch state dictionaries (.pth) for all trained models.
+* `plots/`: Generated figures used in the report and this README.
+* `pyproject.toml` / `poetry.lock`: Dependency specifications.
 
-```
-.
-├── main.ipynb                 # Primary benchmark runner
-├── ablation.ipynb             # Supplementary ablation studies
-├── experiment_results.txt     # Raw execution logs verifying all claims
-├── data/                      # Cached datasets (MNIST/Fashion-MNIST)
-├── saved_models/              # PyTorch state dictionaries (.pth)
-├── plots/                     # Generated figures for report and readme
-│   ├── training_curves.png
-│   ├── dataset_comparison.png
-│   ├── ablation_analysis.png
-│   └── comparison_table.png
-├── pyproject.toml             # Poetry dependency specification
-└── poetry.lock                # Exact dependency lockfile
-```
-
-## 📜 References Used in Report
-
-1.  **[Hornik et al., 1989]** *Multilayer feedforward networks are universal approximators.* Neural Networks, 2(5).
-2.  **[Li, 2024]** *Kolmogorov-Arnold Networks are Radial Basis Function Networks (FastKAN).* arXiv:2405.06721.
-3.  **[Liu et al., 2024]** *KAN: Kolmogorov-Arnold Networks.* arXiv:2404.19756.
-4.  **[Poeta et al., 2024]** *A benchmarking study of Kolmogorov-Arnold Networks on tabular data.* arXiv:2406.14529.
-5.  **[Prince, 2023]** *Understanding Deep Learning.* MIT Press.
-6.  **[Yu et al., 2024]** *KAN or MLP: A Fairer Comparison.* arXiv:2407.16674.
+## References
+1.  Hornik, K., et al. (1989). *Multilayer feedforward networks are universal approximators.* Neural Networks, 2(5).
+2.  Li, Z. (2024). *Kolmogorov-Arnold Networks are Radial Basis Function Networks (FastKAN).* arXiv:2405.06721.
+3.  Liu, Z., et al. (2024). *KAN: Kolmogorov-Arnold Networks.* arXiv:2404.19756.
+4.  Poeta, E., et al. (2024). *A benchmarking study of Kolmogorov-Arnold Networks on tabular data.* arXiv:2406.14529.
+5.  Prince, S. J. D. (2023). *Understanding Deep Learning.* MIT Press.
+6.  Yu, R., et al. (2024). *KAN or MLP: A Fairer Comparison.* arXiv:2407.16674.
