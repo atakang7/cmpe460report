@@ -1,73 +1,79 @@
-# KAN vs. MLP: Computer Vision Benchmark under Strict Parameter Constraints
+# KAN vs. MLP on MNIST and Fashion-MNIST
 
-## Overview
-This repository contains a rigorous empirical benchmark comparing **Kolmogorov-Arnold Networks (KAN)** and their variant **FastKAN** against standard **Multi-Layer Perceptrons (MLP)** on basic computer vision tasks.
+This CMPE 460 experiment compares a multilayer perceptron (MLP), a B-spline Kolmogorov-Arnold Network (KAN), and an RBF-based FastKAN at roughly 110,000 trainable parameters each. It records how accuracy and training time differ when model size is held close to that budget.
 
-Unlike many theoretical studies that utilize large models, this project enforces a strict **~100k parameter budget** across all architectures. This constraint simulates real-world resource-limited environments, such as edge devices, providing a pragmatic assessment of architectural efficiency.
+[Read the report (PDF)](plots/cmpe460.pdf).
 
-**Full Report:** [View PDF Report](./plots/cmpe460.pdf)
+## Quick start
 
-## Key Findings
-Based on 10-epoch training runs on an NVIDIA RTX 3060, the following conclusions were drawn:
+Install Python 3.10.12 and Poetry, then run:
 
-1.  **MLP Superiority at Low Parameter Counts:** The standard MLP architecture outperformed both KAN and FastKAN in accuracy, training speed, and convergence rate on both MNIST and Fashion-MNIST datasets.
-2.  **Inefficiency of Complex KAN Grids:** Reducing the KAN spline grid size from $G=5$ to $G=3$ resulted in improved accuracy (+0.33% on Fashion-MNIST). This indicates that standard KAN configurations may over-allocate limited parameters to complex edge functions rather than necessary network width.
-3.  **Computational Overhead of Splines:** Despite using optimized vectorized implementations (`EfficientKAN`), KAN models were approximately **15% slower** per training epoch than standard MLPs due to the mathematical complexity of spline evaluation.
-
-### Performance Summary (Fashion-MNIST)
-| Model | Accuracy | Parameters | Training Time (RTX 3060) |
-| :--- | :--- | :--- | :--- |
-| **MLP (Baseline)** | **88.11%** | **109,386** | **18.19s / epoch** |
-| KAN (Efficient) | 86.90% | 107,190 | 20.29s / epoch |
-| FastKAN | 86.15% | 108,034 | 19.34s / epoch |
-
-## Visualizations
-
-### Training Dynamics
-The MLP (blue curve) demonstrates significantly faster initial convergence and maintains a higher accuracy plateau throughout the training process compared to KAN variants.
-![Training Curves](./plots/training_curves.png)
-
-### Aggregate Performance Comparison
-The performance gap between architectures widens on the more complex Fashion-MNIST dataset (bottom row), highlighting the struggle of KANs to extract rich visual features under tight parameter constraints.
-![Dataset Comparison](./plots/dataset_comparison.png)
-
-### Ablation Studies (Fashion-MNIST)
-Ablation tests confirm the robustness of these findings. Reducing grid sensitivity (left dashed lines) improved KAN performance, while increasing MLP depth (right bars) did not alter its superiority.
-![Ablation Analysis](./plots/ablation_analysis.png)
-
-## Reproduction
-
-This project utilizes **Poetry** for strict dependency management and **Jupyter** notebooks for experimental execution.
-
-### Installation
 ```bash
-git clone [https://github.com/atakang7/cmpe460report.git](https://github.com/atakang7/cmpe460report.git)
+git clone https://github.com/atakang7/cmpe460report.git
 cd cmpe460report
-poetry install
+poetry env use 3.10.12
+poetry install --no-root
+poetry run jupyter notebook main.ipynb
 ```
 
-### Execution
-Activate the virtual environment:
+In Jupyter, select **Run All Cells**. To run the depth and grid-size experiments, open the second notebook:
+
 ```bash
-poetry shell
+poetry run jupyter notebook ablation.ipynb
 ```
-Launch Jupyter Lab or Notebook to run the experiments:
-* **`main.ipynb`**: Executes the core 6 benchmarks (3 models x 2 datasets), generates standard training curves, and saves model checkpoints.
-* **`ablation.ipynb`**: Executes the mandatory ablation studies (Grid Sensitivity Analysis and Structural Depth Tests) on Fashion-MNIST.
 
-## Repository Structure
-* `main.ipynb`: Primary benchmark runner.
-* `ablation.ipynb`: Supplementary ablation studies.
-* `experiment_results.txt`: Raw execution logs for verification of reported metrics.
-* `data/`: Directory for cached datasets (MNIST/Fashion-MNIST).
-* `saved_models/`: PyTorch state dictionaries (.pth) for all trained models.
-* `plots/`: Generated figures used in the report and this README.
-* `pyproject.toml` / `poetry.lock`: Dependency specifications.
+The first run may download MNIST and Fashion-MNIST. GPU acceleration is optional; the notebooks use CUDA when available and CPU otherwise.
+
+## Configuration
+
+The experiment settings are near the end of the training section in each notebook:
+
+| Setting | Default |
+| --- | --- |
+| Epochs | 10 |
+| Batch size | 128 |
+| Learning rate | 0.001 |
+| Random seed | 42 |
+| Device | CUDA, otherwise CPU |
+
+Datasets are read from `data/`. Model checkpoints are read from or written to `saved_models/`; figures go to `plots/`, and training logs go to `experiment_results.txt`. No credentials or environment variables are required.
+
+**Existing checkpoints are loaded instead of training again.** Move the relevant `.pth` files out of `saved_models/` before rerunning an experiment with different settings. Changing the epoch count or learning rate alone will not invalidate a checkpoint.
+
+## How it works
+
+`main.ipynb` trains three models on each dataset and compares validation accuracy and average seconds per epoch. `ablation.ipynb` runs those comparisons before testing a smaller KAN spline grid and a deeper MLP on Fashion-MNIST.
+
+The saved Fashion-MNIST results from the original RTX 3060 run were:
+
+| Model | Parameters | Best accuracy | Mean epoch time |
+| --- | ---: | ---: | ---: |
+| MLP | 109,386 | 88.11% | 18.19 s |
+| KAN | 107,190 | 86.90% | 20.29 s |
+| FastKAN | 108,034 | 86.15% | 19.34 s |
+
+See [training curves](plots/training_curves.png), [dataset comparison](plots/dataset_comparison.png), and [ablation figures](plots/ablation_analysis.png). The captured execution logs are in `experiment_results.txt`.
+
+## Usage and checks
+
+These are local research notebooks; there is no API or deployment target. You can inspect the checked-in plots and report without installing Python.
+
+To validate notebook JSON, Python syntax, and safe checkpoint loading without starting model training:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+The same check runs in GitHub Actions on pull requests and pushes to `main`.
+
+## Limitations
+
+The comparison covers two 28×28 grayscale datasets, ten epochs, and the recorded runs rather than repeated trials with error bars. Timings depend on hardware and PyTorch versions. Both notebooks contain the model definitions so each can run on its own; the ablation notebook repeats the base experiment before its extra studies. The CI check does not train models or verify benchmark accuracy.
 
 ## References
-1.  Hornik, K., et al. (1989). *Multilayer feedforward networks are universal approximators.* Neural Networks, 2(5).
-2.  Li, Z. (2024). *Kolmogorov-Arnold Networks are Radial Basis Function Networks (FastKAN).* arXiv:2405.06721.
-3.  Liu, Z., et al. (2024). *KAN: Kolmogorov-Arnold Networks.* arXiv:2404.19756.
-4.  Poeta, E., et al. (2024). *A benchmarking study of Kolmogorov-Arnold Networks on tabular data.* arXiv:2406.14529.
-5.  Prince, S. J. D. (2023). *Understanding Deep Learning.* MIT Press.
-6.  Yu, R., et al. (2024). *KAN or MLP: A Fairer Comparison.* arXiv:2407.16674.
+
+- [KAN: Kolmogorov-Arnold Networks](https://arxiv.org/abs/2404.19756)
+- [Kolmogorov-Arnold Networks are Radial Basis Function Networks (FastKAN)](https://arxiv.org/abs/2405.06721)
+- [Full course report](plots/cmpe460.pdf)
+
+Licensed under [MIT](LICENSE).
